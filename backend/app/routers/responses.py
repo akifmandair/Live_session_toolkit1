@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session as DBSession
 
-from .. import models, schemas
+from .. import ai, models, schemas
 from ..database import get_db
+from ..limiter import limiter
 from ..ws_manager import manager
 
 router = APIRouter(prefix="/questions", tags=["responses"])
@@ -12,39 +14,57 @@ def _normalise(value: str | None) -> str:
     return " ".join((value or "").strip().lower().split())
 
 
-def _evaluate(question: models.Question, payload: schemas.ResponseSubmit) -> bool | None:
+async def _evaluate(question: models.Question, payload: schemas.ResponseSubmit) -> tuple[bool | None, str | None]:
+    """Return (is_correct, graded_by). graded_by is "exact", "ai", or None."""
     if question.mode != "quiz" or not question.has_correct_answer:
-        return None
+        return None, None
     qtype = question.question_type
     settings = question.settings or {}
 
     if qtype in {"multiple_choice", "dropdown"}:
         option = next((o for o in question.options if o.id == payload.option_id), None)
-        return bool(option and option.is_correct)
+        return bool(option and option.is_correct), "exact"
     if qtype == "checkboxes":
         selected = set(payload.selected_option_ids)
         correct = {o.id for o in question.options if o.is_correct}
-        return selected == correct
+        return selected == correct, "exact"
     if qtype in {"short_answer", "paragraph"}:
         expected = settings.get("correct_answer")
         if expected is None:
-            return None
-        return _normalise(payload.text_answer) == _normalise(str(expected))
+            return None, None
+        if _normalise(payload.text_answer) == _normalise(str(expected)):
+            return True, "exact"
+        # Exact match failed — fall back to AI grading for phrasing/wording
+        # differences. Never let a missing/failing AI call break submission:
+        # an unconfirmed answer just stays "exact" (wrong).
+        try:
+            is_correct = await run_in_threadpool(
+                ai.grade_open_answer,
+                question.prompt,
+                str(expected),
+                payload.text_answer or "",
+            )
+            return is_correct, "ai"
+        except (ai.AIConfigError, ai.AIResponseError):
+            return False, "exact"
     if qtype in {"linear_scale", "rating"}:
         expected = settings.get("correct_value")
         if expected is None or payload.numeric_answer is None:
-            return None
-        return int(payload.numeric_answer) == int(expected)
+            return None, None
+        return int(payload.numeric_answer) == int(expected), "exact"
     if qtype in {"multiple_choice_grid", "checkbox_grid"}:
         expected = settings.get("correct_grid")
         if not isinstance(expected, dict):
-            return None
-        return payload.grid_answers == expected
-    return None
+            return None, None
+        return payload.grid_answers == expected, "exact"
+    return None, None
 
 
 @router.post("/{question_id}/responses", response_model=schemas.ResponseOut, status_code=status.HTTP_201_CREATED)
-async def submit_response(question_id: str, payload: schemas.ResponseSubmit, db: DBSession = Depends(get_db)):
+# Higher than the auth limits: many participants on a shared classroom/office
+# NAT IP, each answering several questions over a session, need headroom.
+@limiter.limit("60/minute")
+async def submit_response(request: Request, question_id: str, payload: schemas.ResponseSubmit, db: DBSession = Depends(get_db)):
     question = db.get(models.Question, question_id)
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -78,19 +98,21 @@ async def submit_response(question_id: str, payload: schemas.ResponseSubmit, db:
     if question.question_type == "file_upload" and not payload.file_url:
         raise HTTPException(status_code=400, detail="Please upload a file")
 
+    is_correct, graded_by = await _evaluate(question, payload)
     answer_data = {
         "text_answer": payload.text_answer,
         "selected_option_ids": payload.selected_option_ids,
         "numeric_answer": payload.numeric_answer,
         "grid_answers": payload.grid_answers,
         "file_url": payload.file_url,
+        "graded_by": graded_by,
     }
     response = models.ResponseRecord(
         question_id=question.id,
         participant_id=participant.id,
         option_id=payload.option_id,
         answer_data=answer_data,
-        is_correct=_evaluate(question, payload),
+        is_correct=is_correct,
     )
     db.add(response)
     db.commit()

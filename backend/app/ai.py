@@ -36,9 +36,15 @@ def generate_questions(
     activity_type: str,
     count: int,
     options_per_question: int = 4,
+    source_material: str | None = None,
 ) -> list[dict]:
     """
     Generate classroom-ready questions using Gemini.
+
+    When source_material is provided (e.g. pasted lecture notes/slides text),
+    questions are derived from that material rather than just the topic
+    label — this covers the PRD's "suggest questions based on session
+    content" AI requirement.
 
     Returns:
     [
@@ -68,13 +74,31 @@ def generate_questions(
             'Set "is_correct": false for every option.'
         )
 
-    prompt = f"""
+    source_material = (source_material or "").strip()
+    if source_material:
+        content_instructions = f"""
+Base the questions directly on the material below — reference specific facts,
+terms, and details from it rather than writing generic questions. Use the
+topic label only for framing/context.
+
+Topic label: {topic}
+
+Source material:
+{source_material}
+"""
+    else:
+        content_instructions = f"""
 Create {count} {activity_type} question(s) about:
 
 {topic}
+"""
+
+    prompt = f"""
+{content_instructions}
 
 Requirements:
 
+- Create exactly {count} {activity_type} question(s).
 - Each question must have exactly {options_per_question} options.
 - Questions must be clear and suitable for a classroom or live session.
 - Keep questions concise.
@@ -174,6 +198,77 @@ Return ONLY a JSON array in this exact structure:
                             option["is_correct"] = False
 
     return questions
+
+
+def grade_open_answer(
+    prompt: str,
+    expected_answer: str,
+    submitted_answer: str,
+) -> bool:
+    """
+    Ask Gemini whether a free-text answer is semantically correct.
+
+    Only called as a fallback when a plain normalized string match already
+    failed — this catches answers that mean the same thing but are phrased
+    differently ("Paris" vs "the capital is paris, france"). Raises
+    AIConfigError/AIResponseError like the other AI functions; callers should
+    treat those as "couldn't confirm" rather than a hard failure.
+    """
+
+    client = _get_client()
+
+    grading_prompt = f"""
+You are grading a short-answer question from a live classroom quiz.
+
+Question:
+{prompt}
+
+Expected (correct) answer:
+{expected_answer}
+
+Participant's submitted answer:
+{submitted_answer}
+
+Decide if the submitted answer is correct. It does not need to match the
+expected answer word-for-word — accept answers that are factually/semantically
+equivalent, including minor spelling issues, different phrasing, extra words,
+or different capitalization. Reject answers that are wrong, blank, off-topic,
+or only partially correct.
+
+Return ONLY a JSON object in this exact structure, with no other text:
+
+{{"correct": true}}
+
+or
+
+{{"correct": false}}
+"""
+
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=grading_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0,
+            ),
+        )
+    except Exception as exc:
+        raise AIResponseError(f"Gemini request failed: {exc}") from exc
+
+    text = (response.text or "").strip()
+    if not text:
+        raise AIResponseError("Gemini returned an empty grading response.")
+
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise AIResponseError(f"Gemini didn't return valid JSON: {exc}") from exc
+
+    if not isinstance(result, dict) or "correct" not in result:
+        raise AIResponseError("Gemini returned a malformed grading response.")
+
+    return bool(result["correct"])
 
 
 def summarize_session(

@@ -78,6 +78,7 @@ const [questions, setQuestions] = useState<DraftQuestion[]>(
   const [showAI, setShowAI] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
   const [aiCount, setAiCount] = useState(3);
+  const [aiSourceMaterial, setAiSourceMaterial] = useState("");
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [theme, setTheme] = useState("#4f46e5");
@@ -159,7 +160,13 @@ const [questions, setQuestions] = useState<DraftQuestion[]>(
     if (!aiTopic.trim()) return setAiError("Enter a topic first.");
     setAiError(null); setGenerating(true);
     try {
-      const res = await api.generateQuestions(token, sessionId, { topic: aiTopic.trim(), type: "quiz", count: aiCount, options_per_question: 4 });
+      const res = await api.generateQuestions(token, sessionId, {
+        topic: aiTopic.trim(),
+        type: "quiz",
+        count: aiCount,
+        options_per_question: 4,
+        source_material: aiSourceMaterial.trim() || undefined,
+      });
       commit(res.questions.map((q) => normaliseDraft(q, "quiz")));
       setShowAI(false);
     } catch (err) { setAiError(err instanceof ApiError ? err.message : "Couldn't generate questions."); }
@@ -270,6 +277,12 @@ const [questions, setQuestions] = useState<DraftQuestion[]>(
               <input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="Topic, e.g. Data Structures" className="flex-1 input" />
               <select value={aiCount} onChange={e => setAiCount(Number(e.target.value))} className="input w-28">{Array.from({length:20},(_,i)=>i+1).map(n=><option key={n}>{n}</option>)}</select>
             </div>
+            <textarea
+              value={aiSourceMaterial}
+              onChange={e => setAiSourceMaterial(e.target.value)}
+              placeholder="Paste your slides/notes — optional. Questions will be based on this content instead of just the topic."
+              className="input min-h-24 w-full"
+            />
             {aiError && <p className="text-xs text-wrong">{aiError}</p>}
             <div className="flex gap-2"><button type="button" onClick={handleGenerate} disabled={generating} className="primary">{generating ? "Generating…" : "Generate with AI"}</button><button type="button" onClick={() => setShowAI(false)} className="secondary">Cancel</button></div>
           </div>

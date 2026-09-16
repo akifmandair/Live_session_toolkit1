@@ -49,6 +49,12 @@ class LiveSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     launched_at = Column(DateTime, nullable=True)
     ended_at = Column(DateTime, nullable=True)
+    # Public discovery: facilitators can opt in to listing a session in the
+    # public directory so participants can search/browse instead of only
+    # joining via a shared code/QR.
+    is_public = Column(Boolean, default=False, nullable=False)
+    city = Column(String, nullable=True)
+    country = Column(String, nullable=True)
     facilitator = relationship("User", back_populates="sessions")
     activities = relationship("Activity", back_populates="session", cascade="all, delete-orphan", order_by="Activity.order_index")
     participants = relationship("Participant", back_populates="session", cascade="all, delete-orphan")

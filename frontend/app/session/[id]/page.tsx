@@ -191,94 +191,105 @@ refresh();
   return (
     <main className="min-h-screen bg-paper">
       <TopNav />
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        <Link href="/dashboard" className="text-sm text-ink-600/60 hover:text-ink">
-          ← All sessions
-        </Link>
 
-        <div className="flex items-start justify-between mt-3 mb-6">
-          <div>
-{editingTitle && session.status === "draft" ? (
-  <div className="flex items-center gap-2">
-    <input
-      value={sessionTitle}
-      onChange={(e) => setSessionTitle(e.target.value)}
-      className="font-display text-3xl font-semibold text-ink bg-transparent border-b-2 border-signal focus:outline-none"
-      autoFocus
-    />
+      {/* Header banner — same dark gradient treatment as the dashboard */}
+      <div className="relative overflow-hidden bg-ink bg-dot-grid">
+        <div className="absolute inset-0 bg-glow pointer-events-none" />
+        <div className="relative max-w-3xl mx-auto px-6 py-10">
+          <Link href="/dashboard" className="text-sm text-white/50 hover:text-white transition-colors">
+            ← All sessions
+          </Link>
 
-    <button
-      onClick={handleSaveTitle}
-      disabled={savingTitle}
-      className="rounded-lg bg-signal text-white px-3 py-2 text-sm font-medium"
-    >
-      {savingTitle ? "Saving…" : "Save"}
-    </button>
-
-    <button
-      onClick={() => {
-        setSessionTitle(session.title);
-        setEditingTitle(false);
-      }}
-      className="text-sm text-ink-600/60"
-    >
-      Cancel
-    </button>
-  </div>
-) : (
-  <div className="flex items-center gap-3">
-    <h1 className="font-display text-3xl font-semibold text-ink">
-      {session.title}
-    </h1>
-
-    {session.status === "draft" && (
-      <button
-        onClick={() => setEditingTitle(true)}
-        className="text-sm text-signal hover:underline"
-      >
-        Edit
-      </button>
-    )}
-  </div>
-)}            <div className="flex items-center gap-3 mt-2">
-              <StatusPill status={session.status} />
-              <span className="text-sm text-ink-600/60">
-                {participantCount} participant{participantCount === 1 ? "" : "s"}
-              </span>
+          <div className="flex flex-wrap items-start justify-between gap-4 mt-3">
+            <div>
+              {editingTitle && session.status === "draft" ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={sessionTitle}
+                    onChange={(e) => setSessionTitle(e.target.value)}
+                    className="font-display text-3xl font-semibold text-white bg-transparent border-b-2 border-live focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveTitle}
+                    disabled={savingTitle}
+                    className="rounded-lg bg-live text-ink font-semibold px-3 py-2 text-sm hover:brightness-95 transition-colors"
+                  >
+                    {savingTitle ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSessionTitle(session.title);
+                      setEditingTitle(false);
+                    }}
+                    className="text-sm text-white/60 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <h1 className="font-display text-3xl font-semibold text-white">{session.title}</h1>
+                  {session.status === "draft" && (
+                    <button
+                      onClick={() => setEditingTitle(true)}
+                      className="text-sm text-white/60 hover:text-white hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-3 mt-2">
+                <StatusPill status={session.status} />
+                <span className="text-sm text-white/60">
+                  {participantCount} participant{participantCount === 1 ? "" : "s"}
+                </span>
+              </div>
             </div>
+
+            {session.status === "draft" && (
+              <button
+                onClick={handleLaunchSession}
+                disabled={launching || session.activities.length === 0}
+                title={session.activities.length === 0 ? "Add a poll or quiz first" : undefined}
+                className="rounded-lg bg-live text-ink font-semibold px-4 py-2.5 text-sm hover:brightness-95 transition-colors disabled:opacity-50"
+              >
+                {launching ? "Launching…" : "Launch session"}
+              </button>
+            )}
+            {session.status === "live" && (
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/session/${session.id}/results`}
+                  className="rounded-lg border border-white/30 text-white font-medium px-4 py-2.5 text-sm hover:bg-white/10 transition-colors"
+                >
+                  View results
+                </Link>
+                <button
+                  onClick={handleEndSession}
+                  className="rounded-lg bg-wrong text-white font-medium px-4 py-2.5 text-sm hover:brightness-95 transition-colors"
+                >
+                  End session
+                </button>
+              </div>
+            )}
+            {session.status === "ended" && (
+              <Link
+                href={`/session/${session.id}/results`}
+                className="rounded-lg bg-white text-ink font-medium px-4 py-2.5 text-sm hover:bg-white/90 transition-colors"
+              >
+                View results
+              </Link>
+            )}
           </div>
-
-          {session.status === "draft" && (
-            <button
-              onClick={handleLaunchSession}
-              disabled={launching || session.activities.length === 0}
-              title={session.activities.length === 0 ? "Add a poll or quiz first" : undefined}
-              className="rounded-lg bg-live text-ink font-semibold px-4 py-2.5 text-sm hover:brightness-95 transition disabled:opacity-50"
-            >
-              {launching ? "Launching…" : "Launch session"}
-            </button>
-          )}
-          {session.status === "live" && (
-            <button
-              onClick={handleEndSession}
-              className="rounded-lg bg-wrong text-white font-medium px-4 py-2.5 text-sm hover:brightness-95 transition"
-            >
-              End session
-            </button>
-          )}
-          {session.status === "ended" && (
-            <Link
-              href={`/session/${session.id}/results`}
-              className="rounded-lg bg-ink text-white font-medium px-4 py-2.5 text-sm hover:bg-ink-700 transition"
-            >
-              View results
-            </Link>
-          )}
         </div>
+      </div>
 
+      <div className="max-w-3xl mx-auto px-6 py-10">
         {session.status === "live" && <SessionCodePanel code={session.code} joinUrl={joinUrl} />}
 
-        <div className="mt-8 space-y-4">
+        <div className={session.status === "live" ? "mt-8 space-y-4" : "space-y-4"}>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold text-ink">Polls & quizzes</h2>
             {session.status !== "ended" && !showBuilder && (
@@ -340,66 +351,60 @@ refresh();
               {session.activities.map((activity) => {
                 const isOpen = activity.is_launched && !activity.is_closed;
                 return (
-                  <li key={activity.id} className="bg-white rounded-xl border border-black/5 p-5">
+                  <li key={activity.id} className="bg-white rounded-xl border border-black/5 p-5 hover:border-signal/40 hover:shadow-sm transition-all">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <span className="text-xs font-medium uppercase tracking-wide text-ink-600/50">
                           {activity.type}
                         </span>
-<div>
-  <span className="text-xs font-medium uppercase tracking-wide text-ink-600/50">
-    {activity.type}
-  </span>
+                        <p className="font-display font-semibold text-ink">{activity.title}</p>
+                      </div>
 
-  <p className="font-display font-semibold text-ink">
-    {activity.title}
-  </p>
-</div>
-
-{session.status === "draft" && (
-  <button
-    onClick={() => {
-      setEditingActivityId(activity.id);
-      setShowBuilder(true);
-    }}
-    className="text-sm text-signal font-medium hover:underline"
-  >
-    Edit
-  </button>
-)}                      </div>
-
-                      {session.status === "live" && (
-                        <div className="flex items-center gap-2">
-                          {isOpen && (
-                            <span className="flex items-center gap-1.5 text-xs font-medium text-live">
-                              <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-dot" />
-                              Open to participants
-                            </span>
-                          )}
-                          {activity.is_closed && (
-                            <span className="text-xs font-medium text-ink-600/50">Closed</span>
-                          )}
-                          {!activity.is_launched && (
-                            <button
-                              onClick={() => handleLaunchActivity(activity.id)}
-                              disabled={busyActivityId === activity.id || !!launchedActivity}
-                              title={launchedActivity ? "Close the currently open activity first" : undefined}
-                              className="rounded-lg bg-signal text-white text-xs font-medium px-3 py-1.5 hover:bg-signal-dark transition disabled:opacity-50"
-                            >
-                              Launch
-                            </button>
-                          )}
-                          {isOpen && (
-                            <button
-                              onClick={() => handleCloseActivity(activity.id)}
-                              disabled={busyActivityId === activity.id}
-                              className="rounded-lg bg-ink text-white text-xs font-medium px-3 py-1.5 hover:bg-ink-700 transition disabled:opacity-50"
-                            >
-                              Close
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {session.status === "draft" && (
+                          <button
+                            onClick={() => {
+                              setEditingActivityId(activity.id);
+                              setShowBuilder(true);
+                            }}
+                            className="text-sm text-signal font-medium hover:underline"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {session.status === "live" && (
+                          <div className="flex items-center gap-2">
+                            {isOpen && (
+                              <span className="flex items-center gap-1.5 text-xs font-medium text-live">
+                                <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-dot" />
+                                Open to participants
+                              </span>
+                            )}
+                            {activity.is_closed && (
+                              <span className="text-xs font-medium text-ink-600/50">Closed</span>
+                            )}
+                            {!activity.is_launched && (
+                              <button
+                                onClick={() => handleLaunchActivity(activity.id)}
+                                disabled={busyActivityId === activity.id || !!launchedActivity}
+                                title={launchedActivity ? "Close the currently open activity first" : undefined}
+                                className="rounded-lg bg-signal text-white text-xs font-medium px-3 py-1.5 hover:bg-signal-dark transition disabled:opacity-50"
+                              >
+                                Launch
+                              </button>
+                            )}
+                            {isOpen && (
+                              <button
+                                onClick={() => handleCloseActivity(activity.id)}
+                                disabled={busyActivityId === activity.id}
+                                className="rounded-lg bg-ink text-white text-xs font-medium px-3 py-1.5 hover:bg-ink-700 transition disabled:opacity-50"
+                              >
+                                Close
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-4">

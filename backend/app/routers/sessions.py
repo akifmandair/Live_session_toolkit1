@@ -1,11 +1,12 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user, get_owned_session
+from ..limiter import limiter
 from ..ws_manager import manager
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -17,9 +18,21 @@ def create_session(
     db: DBSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    session = models.LiveSession(
+        title=payload.title,
+        facilitator_id=current_user.id,
+        is_public=payload.is_public,
+        city=(payload.city or "").strip() or None,
+        country=(payload.country or "").strip() or None,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
 
- @router.put("/{session_id}", response_model=schemas.SessionOut)
- def update_session(
+
+@router.put("/{session_id}", response_model=schemas.SessionOut)
+def update_session(
     payload: schemas.SessionUpdate,
     session: models.LiveSession = Depends(get_owned_session),
     db: DBSession = Depends(get_db),
@@ -31,16 +44,16 @@ def create_session(
         )
 
     session.title = payload.title.strip()
+    if payload.is_public is not None:
+        session.is_public = payload.is_public
+    if payload.city is not None:
+        session.city = payload.city.strip() or None
+    if payload.country is not None:
+        session.country = payload.country.strip() or None
 
     db.commit()
     db.refresh(session)
 
-    return session
-    
-    session = models.LiveSession(title=payload.title, facilitator_id=current_user.id)
-    db.add(session)
-    db.commit()
-    db.refresh(session)
     return session
 
 
@@ -55,6 +68,52 @@ def list_sessions(
         .order_by(models.LiveSession.created_at.desc())
         .all()
     )
+
+
+@router.get("/public", response_model=list[schemas.PublicSessionOut])
+def list_public_sessions(
+    db: DBSession = Depends(get_db),
+    q: str | None = None,
+    city: str | None = None,
+    country: str | None = None,
+):
+    """Public directory of discoverable sessions — no auth required.
+
+    Lets participants search for sessions by keyword and/or location
+    (e.g. city="Karachi", country="Pakistan") instead of only joining
+    via a shared code/QR.
+    """
+    query = db.query(models.LiveSession).filter(
+        models.LiveSession.is_public.is_(True),
+        models.LiveSession.status != models.SessionStatus.ended,
+    )
+    if city:
+        query = query.filter(models.LiveSession.city.ilike(f"%{city.strip()}%"))
+    if country:
+        query = query.filter(models.LiveSession.country.ilike(f"%{country.strip()}%"))
+    if q:
+        like = f"%{q.strip()}%"
+        query = query.filter(models.LiveSession.title.ilike(like))
+
+    sessions = query.order_by(
+        models.LiveSession.status.desc(),  # "live" sorts after "draft" alphabetically
+        models.LiveSession.created_at.desc(),
+    ).all()
+
+    return [
+        schemas.PublicSessionOut(
+            id=s.id,
+            title=s.title,
+            code=s.code,
+            status=s.status,
+            city=s.city,
+            country=s.country,
+            facilitator_name=s.facilitator.name,
+            participant_count=len(s.participants),
+            created_at=s.created_at,
+        )
+        for s in sessions
+    ]
 
 
 @router.get("/{session_id}", response_model=schemas.SessionDetailOut)
@@ -174,7 +233,10 @@ def get_session_by_code(code: str, db: DBSession = Depends(get_db)):
 
 
 @router.post("/by-code/{code}/join", response_model=schemas.ParticipantOut, status_code=status.HTTP_201_CREATED)
-async def join_session(code: str, payload: schemas.ParticipantJoin, db: DBSession = Depends(get_db)):
+# Higher than the auth limits: a classroom/workshop full of participants can
+# share one office/school NAT IP and all join within the same minute.
+@limiter.limit("30/minute")
+async def join_session(request: Request, code: str, payload: schemas.ParticipantJoin, db: DBSession = Depends(get_db)):
     session = db.query(models.LiveSession).filter(models.LiveSession.code == code.upper()).first()
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No session found with that code")

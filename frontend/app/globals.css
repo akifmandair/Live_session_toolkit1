@@ -19,3 +19,55 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Subtle dot-grid texture for dark hero sections. */
+.bg-dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.14) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+/* Soft ambient glow blobs used behind hero copy. */
+.bg-glow {
+  background: radial-gradient(circle at 20% 20%, rgba(91, 95, 239, 0.55), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(245, 166, 35, 0.35), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(138, 141, 245, 0.25), transparent 45%);
+}
+
+.gradient-text {
+  background-image: linear-gradient(90deg, #8a8df5, #f5a623);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fadeUp 0.5s ease-out both;
+}
+
+/* Shared form-control classes used by the activity builder (and the join
+   flow) — kept as plain classes rather than component files since the
+   builder assembles many small inline inputs/buttons across question types. */
+@layer components {
+  .input {
+    @apply w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-ink placeholder:text-ink-600/40 focus:outline-none focus:ring-2 focus:ring-signal;
+  }
+  .primary {
+    @apply rounded-lg bg-signal text-white font-medium px-4 py-2.5 text-sm hover:bg-signal-dark transition-colors disabled:opacity-50;
+  }
+  .secondary {
+    @apply rounded-lg px-4 py-2.5 text-sm font-medium text-ink-600/70 hover:text-ink transition-colors;
+  }
+  .tool {
+    @apply flex h-9 w-9 items-center justify-center rounded-lg text-sm text-ink-600/70 hover:bg-black/5 hover:text-ink transition-colors disabled:opacity-30 disabled:hover:bg-transparent;
+  }
+}

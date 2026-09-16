@@ -5,6 +5,7 @@ import type {
   AuthResponse,
   GenerateQuestionsResponse,
   ParticipantResult,
+  PublicSessionSummary,
   SessionDetail,
   SessionResults,
   SessionSummary,
@@ -64,12 +65,24 @@ export const api = {
 
   listSessions: (token: string) => request<SessionSummary[]>("/sessions", {}, token),
 
-  createSession: (token: string, title: string) =>
+  createSession: (
+    token: string,
+    payload: { title: string; is_public?: boolean; city?: string; country?: string }
+  ) =>
     request<SessionSummary>(
       "/sessions",
-      { method: "POST", body: JSON.stringify({ title }) },
+      { method: "POST", body: JSON.stringify(payload) },
       token
     ),
+
+  listPublicSessions: (params: { q?: string; city?: string; country?: string } = {}) => {
+    const search = new URLSearchParams();
+    if (params.q) search.set("q", params.q);
+    if (params.city) search.set("city", params.city);
+    if (params.country) search.set("country", params.country);
+    const qs = search.toString();
+    return request<PublicSessionSummary[]>(`/sessions/public${qs ? `?${qs}` : ""}`);
+  },
 
   getSession: (token: string, sessionId: string) =>
     request<SessionDetail>(`/sessions/${sessionId}`, {}, token),
@@ -86,7 +99,7 @@ export const api = {
   updateSession: (
   token: string,
   sessionId: string,
-  payload: { title: string }
+  payload: { title: string; is_public?: boolean; city?: string; country?: string }
 ) =>
   request<SessionSummary>(
     `/sessions/${sessionId}`,
@@ -146,7 +159,13 @@ reuseSession: (token: string, sessionId: string) =>
   generateQuestions: (
     token: string,
     sessionId: string,
-    payload: { topic: string; type: "poll" | "quiz"; count: number; options_per_question: number }
+    payload: {
+      topic: string;
+      type: "poll" | "quiz";
+      count: number;
+      options_per_question: number;
+      source_material?: string;
+    }
   ) =>
     request<GenerateQuestionsResponse>(
       `/sessions/${sessionId}/activities/generate`,

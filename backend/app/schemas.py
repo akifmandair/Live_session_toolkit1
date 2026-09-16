@@ -30,10 +30,16 @@ class Token(BaseModel):
 
 class SessionCreate(BaseModel):
     title: str = Field(min_length=1, max_length=160)
+    is_public: bool = False
+    city: Optional[str] = Field(default=None, max_length=120)
+    country: Optional[str] = Field(default=None, max_length=120)
 
 
 class SessionUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=160)
+    is_public: Optional[bool] = None
+    city: Optional[str] = Field(default=None, max_length=120)
+    country: Optional[str] = Field(default=None, max_length=120)
 
 
 class SessionOut(BaseModel):
@@ -44,12 +50,28 @@ class SessionOut(BaseModel):
     created_at: datetime
     launched_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
+    is_public: bool = False
+    city: Optional[str] = None
+    country: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
 class SessionDetailOut(SessionOut):
     activities: list["ActivityOut"] = []
     participant_count: int = 0
+
+
+class PublicSessionOut(BaseModel):
+    id: str
+    title: str
+    code: str
+    status: str
+    city: Optional[str] = None
+    country: Optional[str] = None
+    facilitator_name: str
+    participant_count: int = 0
+    created_at: datetime
+    model_config = {"from_attributes": True}
 
 
 QUESTION_TYPES = {
@@ -159,6 +181,7 @@ class QuestionResultOut(BaseModel):
     total_responses: int
     options: list[OptionResultOut]
     text_responses: list[str] = []
+    accuracy_percent: Optional[float] = None
 
 
 class ActivityResultsOut(BaseModel):
@@ -195,6 +218,7 @@ class GenerateQuestionsRequest(BaseModel):
     type: str = Field(pattern="^(poll|quiz)$")
     count: int = Field(ge=1, le=20, default=3)
     options_per_question: int = Field(ge=2, le=6, default=4)
+    source_material: Optional[str] = Field(default=None, max_length=8000)
 
 
 class GenerateQuestionsResponse(BaseModel):

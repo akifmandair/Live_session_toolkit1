@@ -14,11 +14,12 @@ export function useSessionSocket(code: string | null, onEvent: (event: SessionSo
   onEventRef.current = onEvent;
   useEffect(() => {
     if (!code) return;
+    const sessionCode = code;
     let socket: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let closedByEffect = false;
     function connect() {
-      socket = new WebSocket(wsUrl(code));
+      socket = new WebSocket(wsUrl(sessionCode));
       socket.onmessage = evt => { try { onEventRef.current(JSON.parse(evt.data)); } catch {} };
       socket.onclose = () => { if (!closedByEffect) reconnectTimer = setTimeout(connect, 1500); };
     }

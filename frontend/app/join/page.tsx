@@ -66,7 +66,7 @@ useEffect(() => {
   }
 }, [phase, code, participantId]);
 
-  if(!participantId||phase==='join') return <Card><form onSubmit={handleJoin}><h1 className="font-display text-2xl font-semibold text-ink mb-1">Join a session</h1><p className="text-ink-600/70 text-sm mb-6">Enter the code your facilitator shared.</p><div className="space-y-4"><input required value={code} onChange={e=>setCode(e.target.value)} placeholder="Session code" className="w-full input uppercase tracking-widest"/><input required value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" className="w-full input"/>{error&&<p className="text-sm text-wrong">{error}</p>}<button disabled={joining} className="w-full primary">{joining?'Joining…':'Join session'}</button></div></form></Card>;
+  if(!participantId||phase==='join') return <Card><form onSubmit={handleJoin}><h1 className="font-display text-2xl font-semibold text-ink mb-1">Join a session</h1><p className="text-ink-600/70 text-sm mb-6">Enter the code your facilitator shared.</p><div className="space-y-4"><input required value={code} onChange={e=>setCode(e.target.value)} placeholder="Session code" className="w-full input uppercase tracking-widest"/><input required value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" className="w-full input"/>{error&&<p className="text-sm text-wrong">{error}</p>}<button disabled={joining} className="w-full primary">{joining?'Joining…':'Join session'}</button></div></form><p className="text-center text-sm text-ink-600/60 mt-5">Don&apos;t have a code? <a href="/discover" className="text-signal font-medium hover:underline">Discover public sessions</a></p></Card>;
   if (phase === "completed") {
   return (
     <Card>
@@ -110,4 +110,4 @@ useEffect(() => {
   return <Card><p className="text-xs font-medium uppercase tracking-wide text-ink-600/50 mb-1">{activityTitle}</p><p className="font-display text-lg text-ink mb-5">{currentQuestion.prompt}</p><QuestionAnswer q={currentQuestion} onSubmit={handleAnswer} busy={busy}/>{error&&<p className="text-sm text-wrong mt-4">{error}</p>}</Card>;
 }
 
-export default function JoinPage(){return <main className="min-h-screen bg-ink flex flex-col items-center justify-center px-6 gap-8"><Brand size="lg" light/><Suspense fallback={null}><JoinFlow/></Suspense><style jsx global>{`.input{border:1px solid rgba(0,0,0,.12);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;background:white}.primary{border-radius:8px;background:#4f46e5;color:white;font-weight:600;padding:10px 16px;font-size:14px}.primary:disabled{opacity:.5}`}</style></main>}
+export default function JoinPage(){return <main className="min-h-screen bg-ink flex flex-col items-center justify-center px-6 gap-8"><Brand size="lg" light/><Suspense fallback={null}><JoinFlow/></Suspense></main>}

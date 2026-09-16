@@ -12,8 +12,17 @@ Base = declarative_base()
 def migrate_legacy_schema():
     """Small compatibility migration for the pre-Google-Forms schema.
 
-    This keeps an existing local SQLite database usable while the project is being
-    developed. Production deployments should eventually use Alembic migrations.
+    DEPRECATED as the primary migration path: this only keeps an *existing*
+    local dev.db (created before Alembic was set up) usable, via hand-rolled
+    ALTER TABLE statements. It stays here so old local databases don't break,
+    but it is not run against a fresh database and is not how schema changes
+    should happen going forward.
+
+    For any new schema change, add/edit a model in models.py and generate an
+    Alembic migration instead:
+        alembic revision --autogenerate -m "describe the change"
+        alembic upgrade head
+    See backend/alembic/ and the README's "Database migrations" section.
     """
     inspector = inspect(engine)
     tables = inspector.get_table_names()
@@ -39,6 +48,18 @@ def migrate_legacy_schema():
         if "answer_data" not in existing:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE responses ADD COLUMN answer_data JSON"))
+    if "sessions" in tables:
+        existing = {c["name"] for c in inspector.get_columns("sessions")}
+        additions = {
+            "is_public": "BOOLEAN DEFAULT 0",
+            "city": "VARCHAR",
+            "country": "VARCHAR",
+        }
+        with engine.begin() as conn:
+            for name, definition in additions.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE sessions ADD COLUMN {name} {definition}"))
+            conn.execute(text("UPDATE sessions SET is_public = 0 WHERE is_public IS NULL"))
 
 
 def get_db():

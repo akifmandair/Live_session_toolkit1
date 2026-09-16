@@ -232,6 +232,17 @@ def _build_activity_results(activity: models.Activity) -> schemas.ActivityResult
             data = response.answer_data or {}
             if data.get("text_answer"):
                 text_responses.append(str(data["text_answer"]))
+
+        # "Commonly misunderstood topics" (PRD AI nice-to-have) as a concrete,
+        # always-available metric — no AI call needed, works even without a
+        # Gemini key configured.
+        accuracy_percent = None
+        if question.mode == "quiz" and question.has_correct_answer:
+            graded = [r for r in question.responses if r.is_correct is not None]
+            if graded:
+                correct = sum(1 for r in graded if r.is_correct)
+                accuracy_percent = round(correct / len(graded) * 100, 1)
+
         question_results.append(schemas.QuestionResultOut(
             question_id=question.id,
             prompt=question.prompt,
@@ -245,6 +256,7 @@ def _build_activity_results(activity: models.Activity) -> schemas.ActivityResult
                 vote_count=counts[opt.id],
             ) for opt in question.options],
             text_responses=text_responses,
+            accuracy_percent=accuracy_percent,
         ))
     return schemas.ActivityResultsOut(
         activity_id=activity.id,

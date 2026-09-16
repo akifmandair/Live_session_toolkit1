@@ -27,7 +27,14 @@ def generate_activity_questions(
     session: models.LiveSession = Depends(get_owned_session),  # noqa: ARG001 — auth/ownership check
     db: DBSession = Depends(get_db),  # noqa: ARG001 — kept for symmetry with other routes
 ):
-    raw_questions = _run_ai(ai.generate_questions, payload.topic, payload.type, payload.count, payload.options_per_question)
+    raw_questions = _run_ai(
+        ai.generate_questions,
+        payload.topic,
+        payload.type,
+        payload.count,
+        payload.options_per_question,
+        payload.source_material,
+    )
 
     # Re-validate through the same schema used to save activities, so the
     # facilitator only ever sees/reviews well-formed drafts.

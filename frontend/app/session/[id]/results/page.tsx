@@ -52,21 +52,27 @@ export default function SessionResultsPage() {
   return (
     <main className="min-h-screen bg-paper">
       <TopNav />
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        <Link href={`/session/${sessionId}`} className="text-sm text-ink-600/60 hover:text-ink">
-          ← Back to session
-        </Link>
 
-        {error && <p className="text-sm text-wrong mt-4">{error}</p>}
+      {/* Header banner — same dark gradient treatment used on the session workspace/dashboard */}
+      <div className="relative overflow-hidden bg-ink bg-dot-grid">
+        <div className="absolute inset-0 bg-glow pointer-events-none" />
+        <div className="relative max-w-3xl mx-auto px-6 py-10">
+          <Link href={`/session/${sessionId}`} className="text-sm text-white/50 hover:text-white transition-colors">
+            ← Back to session
+          </Link>
+          <h1 className="font-display text-3xl font-semibold text-white mt-3">
+            {results ? `${results.title} — results` : "Results"}
+          </h1>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        {error && <p className="text-sm text-wrong mb-4">{error}</p>}
 
         {!results ? (
           <p className="text-sm text-ink-600/60 py-16 text-center">Loading…</p>
         ) : (
           <>
-            <h1 className="font-display text-3xl font-semibold text-ink mt-3 mb-6">
-              {results.title} — results
-            </h1>
-
             <section className="mb-10 rounded-xl border border-signal/20 bg-signal/5 p-5">
               {!summary && !summarizing && (
                 <button
@@ -87,6 +93,32 @@ export default function SessionResultsPage() {
                 </div>
               )}
             </section>
+
+            {(() => {
+              const toughest = results.activities
+                .flatMap((a) => a.questions)
+                .filter((q) => q.accuracy_percent !== null)
+                .sort((a, b) => (a.accuracy_percent ?? 0) - (b.accuracy_percent ?? 0))
+                .slice(0, 3);
+              if (toughest.length === 0) return null;
+              return (
+                <section className="mb-10 rounded-xl border border-wrong/20 bg-wrong/5 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-wrong mb-3">
+                    Toughest questions
+                  </p>
+                  <ul className="space-y-2">
+                    {toughest.map((q) => (
+                      <li key={q.question_id} className="flex items-center justify-between gap-4 text-sm">
+                        <span className="text-ink/90">{q.prompt}</span>
+                        <span className="shrink-0 font-mono text-ink-600/70">
+                          {q.accuracy_percent}% correct
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })()}
 
             {results.leaderboard.length > 0 && (
               <section className="mb-10">

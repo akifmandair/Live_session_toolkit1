@@ -1,11 +1,18 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 from . import models
 from .config import settings
 from .database import Base, engine, migrate_legacy_schema
+from .limiter import limiter
 from .routers import activities, ai, auth, responses, results, sessions, ws, uploads
+
+logger = logging.getLogger("app")
 
 # For a first run this creates tables automatically. Once you're iterating
 # on the schema for real, switch to Alembic migrations instead of relying
@@ -13,11 +20,21 @@ from .routers import activities, ai, auth, responses, results, sessions, ws, upl
 Base.metadata.create_all(bind=engine)
 migrate_legacy_schema()
 
+if settings.secret_key == "dev-only-secret-change-me":
+    logger.warning(
+        "SECRET_KEY is still the placeholder value from .env.example. "
+        "Fine for local dev — generate your own random value before deploying "
+        "anywhere real users can reach (see backend/.env.example)."
+    )
+
 app = FastAPI(
     title="Live Session Toolkit API",
     description="Backend for creating and running interactive live polls and quizzes.",
     version="0.1.0",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

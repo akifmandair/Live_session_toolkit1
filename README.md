@@ -10,7 +10,7 @@ A responsive web application for live interactive sessions, built around the PRD
 - ORM: SQLAlchemy
 - Real-time: WebSockets
 - Auth: JWT
-- Optional AI: Anthropic API
+- Optional AI: Google Gemini API (free tier) — question generation, open-ended grading, and session summaries
 
 ## New Google-Forms-inspired authoring
 
@@ -30,6 +30,22 @@ The activity builder now supports:
 
 The existing core live-session flow remains: facilitator creates/launches an activity, participants join by code/QR, responses arrive through WebSockets, and supported quiz answers are evaluated automatically.
 
-## Important after upgrading an existing local database
+## Database migrations
 
-The backend includes a small compatibility migration for the new question/response columns. If you have an old `dev.db`, restart the backend once so it can add the new columns. For a clean class-project database, deleting `backend/dev.db` and starting the backend again is also fine.
+Schema changes are managed with Alembic (`backend/alembic/`). For a fresh database (a new Postgres database, or a deleted local `dev.db`):
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+This creates all tables from the current models. When you change a model in `app/models.py`, generate a new migration instead of relying on `create_all`:
+
+```bash
+alembic revision --autogenerate -m "describe the change"
+alembic upgrade head
+```
+
+### Upgrading an old local database
+
+If you have a `dev.db` from before Alembic was added to this project, the backend still runs its old compatibility migration (`migrate_legacy_schema()` in `app/database.py`) on startup, so it keeps working without extra steps. For a clean class-project database, deleting `backend/dev.db` and running `alembic upgrade head` (or just starting the backend, which calls `create_all`) is also fine.
