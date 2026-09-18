@@ -59,7 +59,7 @@ def migrate_legacy_schema():
             for name, definition in additions.items():
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE sessions ADD COLUMN {name} {definition}"))
-            conn.execute(text("UPDATE sessions SET is_public = 0 WHERE is_public IS NULL"))
+            conn.execute(text("UPDATE sessions SET is_public = FALSE WHERE is_public IS NULL"))
 
 
 def get_db():
